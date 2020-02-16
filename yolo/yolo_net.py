@@ -14,7 +14,7 @@ class YOLONet(object):
         self.cell_size = cfg.CELL_SIZE
         self.boxes_per_cell = cfg.BOXES_PER_CELL
         self.output_size = (self.cell_size * self.cell_size) *\
-            (self.num_class + self.boxes_per_cell * 5)
+            (self.num_class + self.boxes_per_cell * 5)    #7*7*（20+2*5）  训练后输出项，7*7是格子数，20类别，2*5 2个待选框5个坐标参数
         self.scale = 1.0 * self.image_size / self.cell_size
         self.boundary1 = self.cell_size * self.cell_size * self.num_class
         self.boundary2 = self.boundary1 +\
@@ -29,16 +29,16 @@ class YOLONet(object):
         self.batch_size = cfg.BATCH_SIZE
         self.alpha = cfg.ALPHA
 
-        self.offset = np.transpose(np.reshape(np.array(
-            [np.arange(self.cell_size)] * self.cell_size * self.boxes_per_cell),
-            (self.boxes_per_cell, self.cell_size, self.cell_size)), (1, 2, 0))
+        self.offset = np.transpose(np.reshape(np.array(                         #reshape 是转置
+            [np.arange(self.cell_size)] * self.cell_size * self.boxes_per_cell), #arange 返回一个固定间隔的向量
+            (self.boxes_per_cell, self.cell_size, self.cell_size)), (1, 2, 0))  #将2X7X7的三维矩阵,转为7X7X2的三维矩阵
 
         self.images = tf.placeholder(
-            tf.float32, [None, self.image_size, self.image_size, 3],
+            tf.float32, [None, self.image_size, self.image_size, 3], #用于存储原始图片集
             name='images')
         self.logits = self.build_network(
             self.images, num_outputs=self.output_size, alpha=self.alpha,
-            is_training=is_training)
+            is_training=is_training)    #YOLO网络构建
 
         if is_training:
             self.labels = tf.placeholder(
@@ -56,7 +56,7 @@ class YOLONet(object):
                       is_training=True,
                       scope='yolo'):
         with tf.variable_scope(scope):
-            with slim.arg_scope(
+            with slim.arg_scope(            #arg_scop 用于给slim带参数的
                 [slim.conv2d, slim.fully_connected],
                 activation_fn=leaky_relu(alpha),
                 weights_regularizer=slim.l2_regularizer(0.0005),
@@ -151,11 +151,11 @@ class YOLONet(object):
         with tf.variable_scope(scope):
             predict_classes = tf.reshape(
                 predicts[:, :self.boundary1],
-                [self.batch_size, self.cell_size, self.cell_size, self.num_class])
+                [self.batch_size, self.cell_size, self.cell_size, self.num_class]) #预测的类别 batchsize x 7x7x20
             predict_scales = tf.reshape(
                 predicts[:, self.boundary1:self.boundary2],
-                [self.batch_size, self.cell_size, self.cell_size, self.boxes_per_cell])
-            predict_boxes = tf.reshape(
+                [self.batch_size, self.cell_size, self.cell_size, self.boxes_per_cell])  #预测的scale batchsize x 7x7x2
+            predict_boxes = tf.reshape( #预测的框 batchsize x 7x7x2,每个box四个位置坐标信息
                 predicts[:, self.boundary2:],
                 [self.batch_size, self.cell_size, self.cell_size, self.boxes_per_cell, 4])
 
@@ -165,25 +165,25 @@ class YOLONet(object):
             boxes = tf.reshape(
                 labels[..., 1:5],
                 [self.batch_size, self.cell_size, self.cell_size, 1, 4])
-            boxes = tf.tile(
+            boxes = tf.tile( #由于单个cell预测boxes_per_cell个box信息，先对box进行该维度上的拼贴一份相同尺度的；后将坐标尺度归一化到整幅图
                 boxes, [1, 1, 1, self.boxes_per_cell, 1]) / self.image_size
-            classes = labels[..., 5:]
+            classes = labels[..., 5:] #label后[5:25]位置：目标类别信息
 
-            offset = tf.reshape(
+            offset = tf.reshape( #将offset维度由7x7x2 reshape成 1x7x7x2
                 tf.constant(self.offset, dtype=tf.float32),
                 [1, self.cell_size, self.cell_size, self.boxes_per_cell])
-            offset = tf.tile(offset, [self.batch_size, 1, 1, 1])
+            offset = tf.tile(offset, [self.batch_size, 1, 1, 1]) #将offset的第一个维度拼贴为batchsize大小，即offset变为：batchsize x 7x7x2
             offset_tran = tf.transpose(offset, (0, 2, 1, 3))
             predict_boxes_tran = tf.stack(
-                [(predict_boxes[..., 0] + offset) / self.cell_size,
-                 (predict_boxes[..., 1] + offset_tran) / self.cell_size,
-                 tf.square(predict_boxes[..., 2]),
-                 tf.square(predict_boxes[..., 3])], axis=-1)
+                [(predict_boxes[..., 0] + offset) / self.cell_size,   #（预测box的x坐标+偏移量）/7
+                 (predict_boxes[..., 1] + offset_tran) / self.cell_size,  #（预测box的y坐标+偏移量）/7
+                 tf.square(predict_boxes[..., 2]),      #对w求平方
+                 tf.square(predict_boxes[..., 3])], axis=-1)    #对h求平方
 
             iou_predict_truth = self.calc_iou(predict_boxes_tran, boxes)
 
             # calculate I tensor [BATCH_SIZE, CELL_SIZE, CELL_SIZE, BOXES_PER_CELL]
-            object_mask = tf.reduce_max(iou_predict_truth, 3, keep_dims=True)
+            object_mask = tf.reduce_max(iou_predict_truth, 3, keep_dims=True) #找出iou_predict_truth 第 3维度（即box_per_cell）维度计算得到的最大值构成一个tensor
             object_mask = tf.cast(
                 (iou_predict_truth >= object_mask), tf.float32) * response
 

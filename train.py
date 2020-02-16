@@ -15,11 +15,11 @@ class Solver(object):
     def __init__(self, net, data):
         self.net = net
         self.data = data
-        self.weights_file = cfg.WEIGHTS_FILE
-        self.max_iter = cfg.MAX_ITER
-        self.initial_learning_rate = cfg.LEARNING_RATE
-        self.decay_steps = cfg.DECAY_STEPS
-        self.decay_rate = cfg.DECAY_RATE
+        self.weights_file = cfg.WEIGHTS_FILE #权重文件，默认无
+        self.max_iter = cfg.MAX_ITER  #默认15000
+        self.initial_learning_rate = cfg.LEARNING_RATE #初始学习率0.0001
+        self.decay_steps = cfg.DECAY_STEPS #衰减步长：30000
+        self.decay_rate = cfg.DECAY_RATE #衰减率：0.1
         self.staircase = cfg.STAIRCASE
         self.summary_iter = cfg.SUMMARY_ITER
         self.save_iter = cfg.SAVE_ITER
@@ -29,11 +29,12 @@ class Solver(object):
             os.makedirs(self.output_dir)
         self.save_cfg()
 
-        self.variable_to_restore = tf.global_variables()
-        self.saver = tf.train.Saver(self.variable_to_restore, max_to_keep=None)
-        self.ckpt_file = os.path.join(self.output_dir, 'yolo')
-        self.summary_op = tf.summary.merge_all()
-        self.writer = tf.summary.FileWriter(self.output_dir, flush_secs=60)
+        self.variable_to_restore = tf.global_variables()   #?声明一个全局变量
+        self.saver = tf.train.Saver(self.variable_to_restore, max_to_keep=None) #用于保存checkpoint
+        self.ckpt_file = os.path.join(self.output_dir, 'yolo')  #checkpoint文件路径
+        self.summary_op = tf.summary.merge_all() #merge_all 可以将所有summary全部保存到磁盘，以便tensorboard显示。如果没有特殊要求，一般用这一句就可一显示训练时的各种信息了。
+        self.writer = tf.summary.FileWriter(self.output_dir, flush_secs=60)  #设置自动保存时间
+        print("events.out")
 
         self.global_step = tf.train.create_global_step()
         self.learning_rate = tf.train.exponential_decay(
@@ -42,7 +43,7 @@ class Solver(object):
         self.optimizer = tf.train.GradientDescentOptimizer(
             learning_rate=self.learning_rate)
         self.train_op = slim.learning.create_train_op(
-            self.net.total_loss, self.optimizer, global_step=self.global_step)
+            self.net.total_loss, self.optimizer, global_step=self.global_step)  #训练必须首先定义一个 train_op， 它的作用包括：（1）计算损失（2）将梯度运用于参数的更新（3）返回损失值
 
         gpu_options = tf.GPUOptions()
         config = tf.ConfigProto(gpu_options=gpu_options)
@@ -61,7 +62,7 @@ class Solver(object):
         load_timer = Timer()
 
         for step in range(1, self.max_iter + 1):
-
+            print(step)
             load_timer.tic()
             images, labels = self.data.get()
             load_timer.toc()
@@ -92,6 +93,7 @@ class Solver(object):
 
                 else:
                     train_timer.tic()
+                    print(step)
                     summary_str, _ = self.sess.run(
                         [self.summary_op, self.train_op],
                         feed_dict=feed_dict)

@@ -16,7 +16,7 @@ class pascal_voc(object):
         self.image_size = cfg.IMAGE_SIZE
         self.cell_size = cfg.CELL_SIZE
         self.classes = cfg.CLASSES
-        self.class_to_ind = dict(zip(self.classes, range(len(self.classes))))
+        self.class_to_ind = dict(zip(self.classes, range(len(self.classes))))   #把类别名称转化为一个map ，编码从0~20
         self.flipped = cfg.FLIPPED
         self.phase = phase
         self.rebuild = rebuild
@@ -119,11 +119,11 @@ class pascal_voc(object):
 
         imname = os.path.join(self.data_path, 'JPEGImages', index + '.jpg')
         im = cv2.imread(imname)
-        h_ratio = 1.0 * self.image_size / im.shape[0]
-        w_ratio = 1.0 * self.image_size / im.shape[1]
+        h_ratio = 1.0 * self.image_size / im.shape[0]  #高度比例
+        w_ratio = 1.0 * self.image_size / im.shape[1]  #宽度比例
         # im = cv2.resize(im, [self.image_size, self.image_size])
 
-        label = np.zeros((self.cell_size, self.cell_size, 25))
+        label = np.zeros((self.cell_size, self.cell_size, 25)) #7*7*25
         filename = os.path.join(self.data_path, 'Annotations', index + '.xml')
         tree = ET.parse(filename)
         objs = tree.findall('object')
@@ -135,7 +135,7 @@ class pascal_voc(object):
             y1 = max(min((float(bbox.find('ymin').text) - 1) * h_ratio, self.image_size - 1), 0)
             x2 = max(min((float(bbox.find('xmax').text) - 1) * w_ratio, self.image_size - 1), 0)
             y2 = max(min((float(bbox.find('ymax').text) - 1) * h_ratio, self.image_size - 1), 0)
-            cls_ind = self.class_to_ind[obj.find('name').text.lower().strip()]
+            cls_ind = self.class_to_ind[obj.find('name').text.lower().strip()]   #通过name 对应一个类别编码
             boxes = [(x2 + x1) / 2.0, (y2 + y1) / 2.0, x2 - x1, y2 - y1]
             x_ind = int(boxes[0] * self.cell_size / self.image_size)
             y_ind = int(boxes[1] * self.cell_size / self.image_size)
