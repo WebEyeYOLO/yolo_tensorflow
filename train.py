@@ -63,6 +63,7 @@ class Solver(object):
 
         for step in range(1, self.max_iter + 1):
             print(step)
+            print(self.global_step)
             load_timer.tic()
             images, labels = self.data.get()
             load_timer.toc()
@@ -78,9 +79,9 @@ class Solver(object):
                         feed_dict=feed_dict)
                     train_timer.toc()
 
-                    log_str = '''{} Epoch: {}, Step: {}, Learning rate: {},'''
-                    ''' Loss: {:5.3f}\nSpeed: {:.3f}s/iter,'''
-                    '''' Load: {:.3f}s/iter, Remain: {}'''.format(
+                    log_str = '''{} Epoch: {}, Step: {}, Learning rate: {},
+                    Loss: {:5.3f}\nSpeed: {:.3f}s/iter,
+                    Load: {:.3f}s/iter, Remain: {}'''.format(
                         datetime.datetime.now().strftime('%m-%d %H:%M:%S'),
                         self.data.epoch,
                         int(step),
