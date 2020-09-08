@@ -1,3 +1,4 @@
+#coding=utf-8
 import os
 import cv2
 import argparse
@@ -6,6 +7,9 @@ import tensorflow as tf
 import yolo.config as cfg
 from yolo.yolo_net import YOLONet
 from utils.timer import Timer
+import base64
+import json
+
 
 
 class Detector(object):
@@ -181,8 +185,47 @@ class Detector(object):
 
         self.draw_result(image, result)
         cv2.imwrite('x.jpg', image)
-        cv2.imshow('Image', image)
-        cv2.waitKey(wait)
+        # cv2.imshow('Image', image)
+        # cv2.waitKey(wait)
+
+    def detector_run(self, impath, repath):
+        while True:
+            for root, dirs, files in os.walk(impath):
+                for imfile in files:
+                    image = cv2.imread(impath+imfile)
+                    print(impath+imfile)
+                    os.remove(impath+imfile)
+                    try:
+                        image.shape
+                    except:
+                        print('fail to read jpg')
+                        continue
+
+                    result = self.detect(image)
+                    self.draw_result(image, result)
+                    cv2.imwrite('x.jpg', image)
+                    result_list = []
+                   # tmp_map = {}
+                    print(result)
+                    for i in range(len(result)):
+                        # tmp_map["X"] = int(result[i][1])
+                        # tmp_map["Y"] = int(result[i][2])
+                        # tmp_map["Width"] = int(result[i][3])
+                        # tmp_map["Hight"] = int(result[i][4])
+                        # tmp_map["Object"] = result[i][0]
+
+                        result_list.append({"X":int(result[i][1]), "Y":int(result[i][2]), "Width":int(result[i][3]), "Hight":int(result[i][4]), "Object":result[i][0]})
+
+                    json_result = {
+                        "Amount": len(result),
+                        "Objects": result_list
+                    }
+                    json_out_path = repath + imfile[0:-6] + ".json"
+                    json_out = json.dumps(json_result, ensure_ascii=False)
+                    with open(json_out_path, 'w') as file:
+                        file.write(json_out)
+
+
 
 
 def main():
@@ -191,22 +234,15 @@ def main():
     parser.add_argument('--weight_dir', default='weights', type=str)
     parser.add_argument('--data_dir', default="data", type=str)
     parser.add_argument('--gpu', default='', type=str)
+    parser.add_argument('--read_image_path', default='/run/images/', type=str)
+    parser.add_argument('--result_path', default='/run/result_path/', type=str)
     args = parser.parse_args()
 
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-
     yolo = YOLONet(False)
     weight_file = os.path.join(args.data_dir, args.weight_dir, args.weights)
     detector = Detector(yolo, weight_file)
-
-    # detect from camera
-    # cap = cv2.VideoCapture(-1)
-    # detector.camera_detector(cap)
-
-    # detect from image file
-    imname = 'data/test/baobao.jpg'
-    detector.image_detector(imname)
-
+    detector.detector_run(args.read_image_path, args.result_path)
 
 if __name__ == '__main__':
     main()
